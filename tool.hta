@@ -1,0 +1,242 @@
+
+
+
+	<html>
+	<head>
+	<title>SpeedSpark+ Uma Farm Tool</title>
+	<hta:application 
+		id="oHTA"
+		border="thin"
+		caption="yes"
+		scroll="no"
+		windowstate="normal">
+		
+<link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/gh/AI-code-uploads-throwaway/SS3umafarm@main/styles.css">
+<link rel="stylesheet" type="text/css" href="styles.css">
+
+
+
+	</head>
+
+	
+	<body>
+
+		<!-- STATS FOOTER elements--> 
+		<div id="footer"
+		class="headerfooter io-box footer" 
+		>
+
+		<strong>Undo day | Points Gained (Training):</strong>
+		
+		<button class="training-widgetGroup" title:"R"
+				onclick="updatepBar('progresslevelR')" >
+		 <div id="levelR" class="bar-container">
+				<div "style:overflow:show;">R </div>
+				<div id="progresslevelR" class="progress-fill"> </div>
+		 </div>
+		</button> 
+			 
+		<button class="training-widgetGroup" title:"D"
+				onclick="updatepBar('progresslevelD')" >
+		 <div id="levelR" class="bar-container">
+				<div "style:overflow:show;">D </div>
+				<div id="progresslevelD" class="progress-fill"> </div>
+		 </div>
+		</button> 
+			 
+		<button class="training-widgetGroup" title:"T"
+				onclick="updatepBar('progresslevelT')" >
+		 <div id="levelT" class="bar-container">
+				<div "style:overflow:show;">T </div>
+				<div id="progresslevelT" class="progress-fill"> </div>
+		 </div>
+		</button> 
+				
+		<br>
+		
+			<!-- INPUTS FOOTER-->
+		<input type="checkbox" id="resetDay"> <label for="resetDay">Undo </label>
+		
+		<input type="number" value=" - / +" tabindex="1"
+		 id="txtInput"
+		 style="width:13%; bottom:0; top:auto; bottom:0; text-align:center"
+		 onkeypress="VBScript:If window.event.keyCode = 13 Then ProcessInput"
+		value="Pts +/-" 
+		> 
+				
+		<button onclick="ProcessInput()" > --- Undo/Train --- </button>
+			 
+		<!-- this br tag puts INPUT EVENTS on a new line-->
+		<br> 
+		
+			<!-- INPUT EVENTS (events giving extra stats)-->
+		 <span style="margin-left:15px; font-size: 0.9em;">
+		<input type="checkbox" id="chkBigEvent"> 
+				<label for="chkBigEvent">Event (+20)</label>
+		<input type="checkbox" id="chkEvent"> 
+				<label for="chkEvent">Event (+10)</label>
+		<input type="checkbox" id="chkExtra"> 
+				<label for="chkExtra">Extra (+5)</label>
+		 </span> 
+		
+			<!-- INPUT EFFECTS (is status active giving extra friendship gains)-->
+		 <span style="float:right"> 
+		<input type="checkbox" value="Charming" id="chkisCharming"
+				<label for="chkisCharming"/> Charming </button>
+		<input type="checkbox" value="HotTopic" id="chkisHT"
+				<label for="chkisHT"/> Hot Topic </button>
+		 </span>
+	
+	</div>	
+		 <!-- END of footer elements-->
+		
+		
+		<!-- HEADER elements-->
+		<div 
+		  id="header" 
+		  class="headerfooter io-box
+		  header" 
+		 > 
+		</div>
+
+	<div id="content">
+	
+		<table style="width:100%; height:100%; border-collapse: collapse; scroll: yes;">
+		 <tr> 
+		<td id="titleCell1" style="width:30%;"> 
+		<h3>Turn History:</h3>
+		<p id="logArea"
+		style="height 100%; border: 1px solid #888888; vertical-align: top; padding: 5px;" >
+		</p>
+		 </td>
+		
+		<td id="titlecell2" style="width:30%;" > 
+		<h3> ... </h3> 
+		<p id="td1"
+		style="height 100%; border: 1px solid #888888; padding: 5px;" >
+		<p> Welcome to SS+ Uma Farm Tool! Enter training gain in the box, include free bonuses (+10), (+5), click train to advance the days (Derby/Sho).</p>
+		<p> To UNDO 1 day and - skill pts gained enter the TOTAL skill points to undo, tick "undo" box and click undo/train. "Bonus" checkboxes counted with the UNDO box checked.</p>
+		</p>
+		 </td>
+		 
+		<td id="titlecell3" style="width:30%; vertical-align: top;" > 
+		<h3> ... </h3> 
+		<p id="td3"
+		style="height 100%; border: 1px solid #888888;  padding: 5px;" >
+		</p>
+		 </td>
+		 
+		 </tr>
+		</table>
+
+	</div>
+
+
+	<script language="vbscript">
+
+	Sub Window_OnLoad
+		window.resizeTo 700, 600
+		document.getElementById("logArea").innerHTML = "<br>Training in earnest begins (Turn 0)"
+	End Sub
+	
+	
+	' shorthand/custom functions block
+		Function objGrab(obElement, argo)
+			If argo = "" Then
+				Set objGrab = document.getElementById(obElement)
+			 Else
+				objGrab = Eval("document.getElementById(""" & obElement & """)." & argo)
+			End If
+		End Function
+
+	'
+	
+	
+	' create and store variables block
+		Dim dayTurn, totalPoints
+		 dayTurn = 0 : totalPoints = 0
+		
+		Dim isSilverPts, isGoldPts
+		 isSilverPts = false 
+		 isGoldPts = false 
+		
+		
+	' code the script uses when input is sent (when day is advanced or undone)
+		Sub ProcessInput()	
+		Dim strInput, bonus, logArea
+		 strInput = objGrab("txtInput", "value")
+			If strInput <> "Training in earnest begins (Turn 0)" AND Not IsNumeric(strInput) Then
+				MsgBox "Error: Numbers only."
+		' Make sure it is a number and continue. End if Not
+		Exit sub
+			end If 
+			
+		strInput = CLng(strInput)		
+	' Get the value from the inputbox and apply modifiers if present	
+		Set logArea = objGrab("logArea", "")
+			 
+			
+			if objGrab("resetDay", "checked") = true Then
+			  bonus = 0
+			  totalPoints = totalPoints - strInput
+				if dayTurn > 0 Then
+					dayTurn = dayTurn -1	
+				end if
+			logArea.innerHTML = "<b>Now</b> day: " & dayTurn & " Undid " & strInput & "+/-(" & bonus & ")" & "pts (New Total: " & totalPoints & ")<br>" & logArea.innerHTML
+			  
+			  objGrab("txtInput", "").value = ""
+		Exit sub
+			 end if
+			 
+			 bonus = 0
+			If objGrab("chkBigEvent", "checked") Then bonus = bonus + 20
+			If objGrab("chkEvent", "checked") Then bonus = bonus + 10
+			If objGrab("chkExtra", "checked") Then bonus = bonus + 5
+	' ProcessInput()s function
+			dayTurn = dayTurn + 1
+			totalPoints = totalPoints + CLng(strInput) + bonus
+		
+
+	' HEADER BORDER COLOR CHANGE (AI)
+			If totalPoints >= 600 AND isGoldPts = false Then
+			document.getElementById("header").style.borderColor = "#FFD700"
+			 isGoldPts = true
+			ElseIf totalPoints = 599 AND isSilverPts = false Then
+			' Target the header and change the color
+			document.getElementById("header").style.borderColor = "#CD7F32"	
+			 isSilverPts = true 
+			end if
+	' ProcessInput()s function & end sub		
+			logArea.innerHTML = "<b>Day " & dayTurn & ":</b> Gained " & strInput & "+(" & bonus & ")" & "<br> pts (New Total: " & totalPoints & ")<br>" & logArea.innerHTML
+
+			objGrab("txtInput", "").value = ""
+	
+		End Sub
+			
+		
+	' Friendship meter bar trackers sub
+	Sub updatepBar(id)
+    Dim obj, currentLvl, newLvl
+    Set obj = document.getElementById(id)
+    
+    currentLvl = obj.title
+		If currentLvl = "" Then currentLvl = 1
+   
+	newLvl = CInt(currentLvl) + 1
+    
+		If newLvl > 5 Then newLvl = 5
+    
+    obj.title = newLvl
+    obj.style.height = (newLvl * 20) & "%"
+
+	
+	End Sub
+
+
+	</script>
+
+	</body>
+	</html>
+
+
+		
