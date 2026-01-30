@@ -1,0 +1,430 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>SpeedSpark+ Uma Farm Tool</title>
+
+<!-- Inlined original styles.css (cleaned & adapted so it works in a browser) -->
+<style>
+    /* Global */
+    body {
+        font-family: "Segoe UI", Tahoma, sans-serif;
+        margin: 0;
+        padding: 0;
+        overflow: hidden; /* matches HTA: fixed window without scrollbars on body */
+        background: #efefef;
+    }
+
+    /* App container uses absolute layout similar to HTA */
+    .app {
+        position: absolute;
+        left: 8px;
+        right: 8px;
+        top: 8px;
+        bottom: 8px;
+        box-sizing: border-box;
+        background: #ffffff;
+        overflow: hidden;
+        border: 1px solid #ccc;
+    }
+
+    /* Header (top bar) */
+    #header {
+        position: absolute;
+        z-index: 100;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 72px; /* tall header like HTA */
+        border-bottom: 2px solid #ccc;
+        transition: border 0.8s ease-in-out;
+        background: #f7f7f7;
+        padding: 10px;
+        box-sizing: border-box;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    /* Footer area (controls area) */
+    #footer {
+        position: absolute;
+        z-index: 100;
+        box-sizing: border-box;
+        width: 100%;
+        left: 0;
+        bottom: 0;
+        border-top: 2px solid #0078d7;
+        background: #f7f7f7;
+        padding: 10px 12px;
+        height: 99px; /* match .headerfooter height in original */
+    }
+    .headerfooter { /* kept for parity with HTA classes */
+        top:auto;
+        position: absolute;
+        width: 100%;
+        height: 99px;
+        background-color: #f0f0f0;
+        padding: 10px;
+        z-index: 100;
+        box-sizing: border-box;
+    }
+
+    /* Content pane between header and footer */
+    #content {
+        position: absolute;
+        top: 92px;    /* just below header */
+        bottom: 110px; /* just above footer */
+        left: 8px;
+        right: 8px;
+        overflow-y: auto;
+        padding: 10px;
+        box-sizing: border-box;
+    }
+
+    table { width:100%; border-collapse: collapse; }
+    td { vertical-align: top; padding: 6px; }
+
+    /* Boxes for the three main panes */
+    #logArea {
+        height: 100%;
+        min-height: 220px;
+        overflow:auto;
+        border: 1px solid #888888;
+        padding: 6px;
+        background: #fff;
+        box-sizing: border-box;
+    }
+    #td1, #td3 {
+        height: 100%;
+        min-height: 220px;
+        border: 1px solid #888888;
+        padding: 6px;
+        background: #fff;
+        overflow:auto;
+        box-sizing: border-box;
+    }
+
+    /* Training widget / progress bar styling (from provided CSS) */
+    .training-widgetGroup {
+        display: inline-flex;
+        height: 50px;
+        margin: 0 5px;
+        vertical-align: bottom;
+        float: right;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        align-items: flex-end;
+    }
+
+    .bar-container {
+        width: 12px;
+        overflow: visible;
+        height: 50px;
+        background: #ddd;
+        border: 1px solid #999;
+        position: relative;
+        display: block;
+        flex-direction: column-reverse;
+        border-top: 1px solid #000;
+        border-bottom: 1px solid #000;
+        box-sizing: border-box;
+        margin-right: 8px;
+    }
+
+    .progress-fill {
+        width: 80%;
+        height: 0%;
+        background-color: #2ecc71;
+        background-image: linear-gradient(
+            to bottom,
+            #000000 0px,
+            #000000 2px,
+            transparent 2px
+        );
+        background-size: 100% 20%;
+        background-position: bottom;
+        transition: height 0.3s ease-in-out;
+        position: absolute;
+        left: 10%;
+        right: 10%;
+        bottom: 0;
+        box-sizing: border-box;
+    }
+
+    .bar-label {
+        font-family: "Arial Black", Gadget, sans-serif;
+        position: absolute;
+        left: -18px;
+        top: -2px;
+        width: 22px;
+        font-size: 12px;
+        transform-origin: top;
+        transform: translateY(-6px);
+        font-weight: 900;
+        pointer-events: none;
+    }
+
+    /* Footer controls layout */
+    .footer-row {
+        display:flex;
+        align-items:center;
+        gap:12px;
+        flex-wrap:wrap;
+        height: 100%;
+        box-sizing: border-box;
+    }
+
+    .controls { display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+    input[type="number"] { width:84px; padding:4px; }
+    button { padding:6px 10px; cursor: pointer; }
+    .checkbox-group label { margin-right:10px; display:inline-block; }
+    .small { font-size:0.9em; color:#333; }
+
+    /* Ensure the footer widgets align to the right like HTA */
+    .footer-left { flex: 1 1 auto; }
+    .footer-right { flex: 0 0 auto; display:flex; align-items:center; gap:8px; }
+</style>
+</head>
+<body>
+  <div class="app" role="application" aria-label="SpeedSpark+ Uma Farm Tool">
+
+    <!-- Header (matches HTA header element and id) -->
+    <div id="header" class="header io-box headerfooter">
+      <strong>SpeedSpark+ Uma Farm Tool</strong>
+    </div>
+
+    <!-- Main content (center area) -->
+    <div id="content">
+      <table style="height:100%;">
+        <tr>
+          <td style="width:33%;">
+            <h3>Turn History:</h3>
+            <div id="logArea" aria-live="polite"></div>
+          </td>
+
+          <td style="width:34%;">
+            <h3> ... </h3>
+            <div id="td1"></div>
+          </td>
+
+          <td style="width:33%;">
+            <h3> ... </h3>
+            <div id="td3"></div>
+          </td>
+        </tr>
+      </table>
+    </div>
+
+    <!-- Footer (controls) - mirrors HTA footer structure and ids/classes -->
+    <div id="footer" class="headerfooter io-box footer" role="region" aria-label="Controls">
+      <div class="footer-row">
+
+        <!-- Left area: progress bars grouped on the right side in HTA -->
+        <div class="footer-left" style="display:flex;justify-content:flex-end;align-items:center;">
+          <!-- R -->
+          <button class="training-widgetGroup" title="R" onclick="updatepBar('progresslevelR')" aria-label="Increase R level">
+            <div class="bar-container">
+              <div class="bar-label">R</div>
+              <div id="progresslevelR" class="progress-fill" title=""></div>
+            </div>
+          </button>
+
+          <!-- D -->
+          <button class="training-widgetGroup" title="D" onclick="updatepBar('progresslevelD')" aria-label="Increase D level">
+            <div class="bar-container">
+              <div class="bar-label">D</div>
+              <div id="progresslevelD" class="progress-fill" title=""></div>
+            </div>
+          </button>
+
+          <!-- T -->
+          <button class="training-widgetGroup" title="T" onclick="updatepBar('progresslevelT')" aria-label="Increase T level">
+            <div class="bar-container">
+              <div class="bar-label">T</div>
+              <div id="progresslevelT" class="progress-fill" title=""></div>
+            </div>
+          </button>
+        </div>
+
+        <!-- Middle area: inputs and Undo/Train -->
+        <div class="footer-right">
+          <div class="controls" style="align-items:center;">
+            <label><input type="checkbox" id="resetDay"> Undo </label>
+
+            <!-- The original HTA used value=" - / +" which is invalid for number input in browser.
+                 To preserve UI intent we use a placeholder and keep numeric input. -->
+            <input id="txtInput" type="number" placeholder="Pts +/-" />
+            <button id="trainBtn" onclick="ProcessInput()"> --- Undo/Train --- </button>
+          </div>
+
+          <!-- Event/bonus checkboxes (as in HTA) -->
+          <div class="checkbox-group small" style="margin-left:12px;">
+            <label><input type="checkbox" id="chkBigEvent"> Event (+20)</label>
+            <label><input type="checkbox" id="chkEvent"> Event (+10)</label>
+            <label><input type="checkbox" id="chkExtra"> Extra (+5)</label>
+            <label><input type="checkbox" id="chkisCharming"> Charming</label>
+            <label><input type="checkbox" id="chkisHT"> Hot Topic</label>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<!-- Script: implements the same logic and behavior as the HTA's VBScript,
+     but in JavaScript so it runs in any modern browser. -->
+<script>
+  /* --- State variables (same names & semantics as original VBScript) --- */
+  var dayTurn = 0;
+  var totalPoints = 0;
+  var isSilverPts = false;
+  var isGoldPts = false;
+
+  // Cached elements
+  var logArea = document.getElementById('logArea');
+  var header = document.getElementById('header');
+
+  // Initial message (exact original wording)
+  logArea.innerHTML = "<br>Training in earnest begins (Turn 0)";
+
+  // objGrab: mimic the VBScript helper function
+  // objGrab(obElement, argo)
+  // If argo === "" return the element; otherwise return the property value
+  function objGrab(obElement, argo) {
+    var el = document.getElementById(obElement);
+    if (!el) return null;
+    if (!argo || argo === "") return el;
+    // replicate Eval("document.getElementById(...)." & argo) from VBScript by returning property
+    try {
+      return el[argo];
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // ProcessInput: main logic for training / undo (mirrors VBScript)
+  function ProcessInput() {
+    var strInputRaw = objGrab("txtInput", "value");
+
+    // The VBScript checked: If strInput <> "Training in earnest begins (Turn 0)" AND Not IsNumeric(strInput) Then MsgBox "Error: Numbers only."
+    // In practice: if input missing or not an integer -> error.
+    if (strInputRaw === null || strInputRaw === "") {
+      alert("Error: Numbers only.");
+      return;
+    }
+
+    // Convert to integer (CLng in VBScript). We'll allow negative numbers as original didn't forbid them.
+    // Use Number and ensure it's an integer.
+    var parsed = Number(strInputRaw);
+    if (!isFinite(parsed) || Math.floor(parsed) !== parsed) {
+      alert("Error: Numbers only.");
+      return;
+    }
+    var strInput = parsed; // integer value
+
+    // If Undo checkbox is checked, perform undo branch (original sets bonus = 0)
+    if (objGrab("resetDay", "checked") === true) {
+      var bonus = 0;
+      totalPoints = totalPoints - strInput;
+      if (dayTurn > 0) dayTurn = dayTurn - 1;
+
+      logArea.innerHTML = "<b>Now</b> day: " + dayTurn + " Undid " + strInput + "+/-(" + bonus + ")" +
+        "pts (New Total: " + totalPoints + ")<br>" + logArea.innerHTML;
+
+      objGrab("txtInput", "").value = "";
+      updateHeaderColors();
+      return;
+    }
+
+    // Normal training branch: compute bonus checkboxes
+    var bonus = 0;
+    if (objGrab("chkBigEvent", "checked") === true) bonus += 20;
+    if (objGrab("chkEvent", "checked") === true) bonus += 10;
+    if (objGrab("chkExtra", "checked") === true) bonus += 5;
+
+    dayTurn = dayTurn + 1;
+    totalPoints = totalPoints + strInput + bonus;
+
+    // Header color change logic exactly as VBScript:
+    // If totalPoints >= 600 AND isGoldPts = false Then set gold and isGoldPts = true
+    // ElseIf totalPoints = 599 AND isSilverPts = false Then set bronze and isSilverPts = true
+    updateHeaderColors();
+
+    logArea.innerHTML = "<b>Day " + dayTurn + ":</b> Gained " + strInput + "+(" + bonus + ")" +
+      "<br> pts (New Total: " + totalPoints + ")<br>" + logArea.innerHTML;
+
+    objGrab("txtInput", "").value = "";
+  }
+
+  // Header color changes (keeps the exact same thresholds/flags)
+  function updateHeaderColors() {
+    if (totalPoints >= 600 && isGoldPts === false) {
+      header.style.borderColor = "#FFD700"; // gold
+      isGoldPts = true;
+    } else if (totalPoints === 599 && isSilverPts === false) {
+      header.style.borderColor = "#CD7F32"; // bronze/silver-like
+      isSilverPts = true;
+    }
+  }
+
+  // updatepBar: replicate VBScript behavior exactly
+  // Sub updatepBar(id)
+  //   Set obj = document.getElementById(id)
+  //   currentLvl = obj.title
+  //   If currentLvl = "" Then currentLvl = 1
+  //   newLvl = CInt(currentLvl) + 1
+  //   If newLvl > 5 Then newLvl = 5
+  //   obj.title = newLvl
+  //   obj.style.height = (newLvl * 20) & "%"
+  // End Sub
+  function updatepBar(id) {
+    var obj = document.getElementById(id);
+    if (!obj) return;
+    var currentLvl = obj.title;
+    if (currentLvl === "" || currentLvl === undefined || currentLvl === null) currentLvl = "1";
+
+    // CInt(currentLvl) in VBScript: parse as integer
+    var newLvl = parseInt(currentLvl, 10) + 1;
+    if (isNaN(newLvl)) newLvl = 1;
+    if (newLvl > 5) newLvl = 5;
+
+    obj.title = String(newLvl);
+    // Set CSS height on the progress-fill element (same unit: percent)
+    obj.style.height = (newLvl * 20) + "%";
+  }
+
+  // Enter key triggers ProcessInput (mimics HTA onkeypress VBScript hook)
+  var txtInput = document.getElementById('txtInput');
+  txtInput.addEventListener('keydown', function (ev) {
+    if (ev.key === 'Enter') {
+      ProcessInput();
+      ev.preventDefault();
+    }
+  });
+
+  // Minimal content for side panes (keeps parity with previously produced HTML)
+  document.getElementById('td1').innerText = "Training helper / status area.";
+  document.getElementById('td3').innerText = "Additional information.";
+
+  // Initialize progress bars exactly like original default (title empty -> treated as 1 when incremented)
+  ['progresslevelR', 'progresslevelD', 'progresslevelT'].forEach(function (id) {
+    var el = document.getElementById(id);
+    if (el) {
+      el.title = ""; // empty string (VBScript checked for "")
+      el.style.height = "20%"; // default 1 level visible (20%)
+    }
+  });
+
+  // Expose functions as globals so onclick attributes work (parity with HTA)
+  window.ProcessInput = ProcessInput;
+  window.updatepBar = updatepBar;
+
+  // Attempt to mimic HTA's Window_OnLoad window.resizeTo(700,600) behavior:
+  // In browsers, we cannot reliably resize windows; instead we can set a reasonable app size
+  // (no-op here since resizing is not permitted for security reasons).
+</script>
+</body>
+</html>
