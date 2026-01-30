@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Repo / Pages Browser — webss3umafarm.github.io</title>
+<style>
+  :root{--bg:#f6f7fb;--card:#fff;--muted:#666;--accent:#2b7cff;--border:#ccc;--row-hover:#eef4ff}
+  html,body{height:100%;margin:0;font-family:Segoe UI,Roboto,Arial,sans-serif;background:var(--bg);color:#111}
+  .wrap{max-width:1100px;margin:18px auto;padding:12px;box-sizing:border-box}
+  header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+  h1{font-size:18px;margin:0}
+  .controls{margin-left:auto;display:flex;gap:8px;align-items:center}
+  .controls select,input[type="text"],.controls button{padding:6px 8px;border:1px solid var(--border);border-radius:4px;background:#fff}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:6px;padding:10px;box-shadow:0 1px 0 rgba(0,0,0,0.03)}
+  nav.breadcrumb{margin:10px 0;font-size:13px}
+  nav.breadcrumb a{color:var(--accent);text-decoration:none;margin-right:6px}
+  .toolbar{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+  .listing{width:100%;border-collapse:collapse}
+  .listing th{text-align:left;padding:8px;border-bottom:1px solid var(--border);font-weight:600;color:var(--muted)}
+  .listing td{padding:10px;border-bottom:1px dashed #eee;vertical-align:middle}
+  .row{display:flex;align-items:center;gap:12px}
+  .icon{width:34px;height:34px;border-radius:6px;background:#f0f4ff;display:flex;align-items:center;justify-content:center;color:var(--accent);font-weight:700}
+  .name a{color:var(--accent);text-decoration:none;font-weight:600}
+  .name .muted{color:var(--muted);font-weight:400}
+  tr:hover{background:var(--row-hover)}
+  .right{margin-left:auto;color:var(--muted);font-size:13px}
+  .search{padding:6px 8px;border:1px solid var(--border);border-radius:6px}
+  .preview-modal{position:fixed;left:0;top:0;right:0;bottom:0;background:rgba(0,0,0,0.45);display:none;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;z-index:1000}
+  .preview-card{width:100%;max-width:980px;height:80vh;background:#fff;border-radius:8px;overflow:auto;box-shadow:0 8px 30px rgba(0,0,0,0.3);display:flex;flex-direction:column}
+  .preview-head{display:flex;align-items:center;padding:8px 12px;border-bottom:1px solid #eee;gap:8px}
+  .preview-body{padding:12px;overflow:auto;font-family:Menlo,Monaco,monospace;font-size:13px;white-space:pre-wrap}
+  .muted{color:var(--muted)}
+  .small{font-size:12px;color:var(--muted)}
+  .empty{padding:28px;text-align:center;color:var(--muted)}
+  footer.small{margin-top:12px;font-size:12px;color:var(--muted)}
+  a.buttonish{display:inline-block;padding:6px 8px;border-radius:6px;border:1px solid var(--border);background:#fff;color:#111;text-decoration:none}
+  /* Preview button styling */
+  .entryPreview {
+    margin-left:8px;
+    font-size:12px;
+    padding:4px 8px;
+    border-radius:4px;
+    border:1px solid var(--border);
+    background:#fff;
+    cursor:pointer;
+  }
+  .entryPreview:active { transform: translateY(1px); }
+  @media (max-width:680px){ .controls{display:none} header{flex-direction:column;align-items:flex-start} }
+</style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Repo / Pages Browser — webss3umafarm.github.io</h1>
+
+      <div class="controls" aria-hidden="false">
+        <label>Source:
+          <select id="sourceSelect" title="source">
+            <!-- options added by script -->
+          </select>
+        </label>
+
+        <label>Branch:
+          <select id="branchSelect" title="branch"></select>
+        </label>
+
+        <input id="search" type="text" class="search" placeholder="Search names..." title="filter list" />
+        <button id="refresh">Refresh</button>
+      </div>
+    </header>
+
+    <div class="card">
+      <nav class="breadcrumb" id="breadcrumb"></nav>
+
+      <div class="toolbar">
+        <div style="font-size:13px;color:var(--muted)">Mode: nginx-style list</div>
+        <div style="margin-left:auto" class="small">Click name to open page (Pages) or file on GitHub (repo). Use Preview to inspect file content.</div>
+      </div>
+
+      <div id="contentArea">
+        <table class="listing" id="listTable" role="table" aria-label="directory listing">
+          <thead>
+            <tr><th style="width:56px"></th><th>Name</th><th style="width:160px">Type</th><th style="width:120px">Size</th></tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div id="empty" class="empty" style="display:none">No files here.</div>
+      </div>
+
+      <footer class="small">
+        Two sources: the live GitHub Pages site (opens pages links), and the alternate GitHub repository (opens file on GitHub). Preview uses raw.githubusercontent.com to fetch file contents for previewing.
+      </footer>
+    </div>
+  </div>
+
+  <!-- Preview modal -->
+  <div id="preview" class="preview-modal" role="dialog" aria-hidden="true">
+    <div class="preview-card">
+      <div class="preview-head">
+        <strong id="previewTitle">File preview</strong>
+        <div style="margin-left:auto" id="previewActions"></div>
+      </div>
+      <div id="previewBody" class="preview-body"><em class="muted">Loading…</em></div>
+    </div>
+  </div>
+
+<script>
+/* Updated Repo/Pages Browser
+   - Single view (nginx-style list)
+   - Click the name:
+       - If source is "Pages (webss3umafarm.github.io)" -> open the page at https://webss3umafarm.github.io/<path>
+       - If source is "AI-code-uploads-throwaway/SS3umafarm" -> open GitHub file page at https://github.com/AI-code-uploads-throwaway/SS3umafarm/blob/<branch>/<path>
+   - A "Preview" button beside each file fetches the raw file from raw.githubusercontent.com and shows it in a modal.
+   - Branch selector uses the selected source's branches.
+*/
+
+const SOURCES = [
+  {
+    id: 'pages',
+    label: 'GitHub Pages — webss3umafarm.github.io',
+    owner: 'webSS3umafarm',
+    repo: 'webss3umafarm.github.io',
+    pagesBase: 'https://webss3umafarm.github.io/' // used to open pages
+  },
+  {
+    id: 'other',
+    label: 'GitHub repo — AI-code-uploads-throwaway/SS3umafarm',
+    owner: 'AI-code-uploads-throwaway',
+    repo: 'SS3umafarm',
+    pagesBase: null // no pages; open GitHub file page instead
+  }
+];
+
+const el = {
+  sourceSelect: document.getElementById('sourceSelect'),
+  branchSelect: document.getElementById('branchSelect'),
+  rows: document.getElementById('rows'),
+  breadcrumb: document.getElementById('breadcrumb'),
+  preview: document.getElementById('preview'),
+  previewBody: document.getElementById('previewBody'),
+  previewTitle: document.getElementById('previewTitle'),
+  previewActions: document.getElementById('previewActions'),
+  search: document.getElementById('search'),
+  refresh: document.getElementById('refresh'),
+  empty: document.getElementById('empty')
+};
+
+let state = {
+  sourceId: SOURCES[0].id,
+  owner: SOURCES[0].owner,
+  repo: SOURCES[0].repo,
+  pagesBase: SOURCES[0].pagesBase,
+  branch: 'main',
+  path: '',
+  entries: []
+};
+
+// populate source dropdown
+for (const s of SOURCES) {
+  const opt = document.createElement('option');
+  opt.value = s.id;
+  opt.textContent = s.label;
+  el.sourceSelect.appendChild(opt);
+}
+el.sourceSelect.value = state.sourceId;
+
+// events
+el.sourceSelect.addEventListener('change', onSourceChange);
+el.branchSelect.addEventListener('change', () => { state.branch = el.branchSelect.value; goTo(''); });
+el.search.addEventListener('input', debounce(renderCurrent, 160));
+el.refresh.addEventListener('click', () => goTo(state.path));
+el.preview.addEventListener('click', (e) => { if (e.target === el.preview) hidePreview(); });
+
+// init
+(async function init(){
+  await applySource(state.sourceId);
+  await goTo('');
+})();
+
+async function onSourceChange(){
+  const selected = el.sourceSelect.value;
+  await applySource(selected);
+  await goTo('');
+}
+
+async function applySource(sourceId){
+  const src = SOURCES.find(s => s.id === sourceId);
+  if (!src) return;
+  state.sourceId = src.id;
+  state.owner = src.owner;
+  state.repo = src.repo;
+  state.pagesBase = src.pagesBase;
+  // fetch branches for this repo
+  try {
+    const res = await fetch(`https://api.github.com/repos/${state.owner}/${state.repo}/branches`);
+    if (!res.ok) throw res;
+    const branches = await res.json();
+    el.branchSelect.innerHTML = branches.map(b => `<option value="${escapeHtml(b.name)}">${escapeHtml(b.name)}</option>`).join('');
+    if ([...el.branchSelect.options].some(o => o.value === 'main')) el.branchSelect.value = 'main';
+    state.branch = el.branchSelect.value;
+  } catch (err) {
+    el.branchSelect.innerHTML = `<option value="main">main</option>`;
+    state.branch = 'main';
+  }
+}
+
+// navigate to a path in the selected repo
+async function goTo(path){
+  state.path = normalizePath(path);
+  try {
+    const apiPath = state.path === '' ? '' : encodeURIComponent(state.path);
+    const url = `https://api.github.com/repos/${state.owner}/${state.repo}/contents/${apiPath}?ref=${encodeURIComponent(state.branch)}`;
+    const res = await fetch(url);
+    if (res.status === 404) {
+      state.entries = [];
+    } else {
+      const j = await res.json();
+      if (!Array.isArray(j)) {
+        state.entries = [{ name: j.name, path: j.path, type: j.type, size: j.size || 0 }];
+      } else {
+        state.entries = j.map(x => ({ name: x.name, path: x.path, type: x.type, size: x.size || 0, download_url: x.download_url })).sort(entrySort);
+      }
+    }
+    renderCurrent();
+  } catch (err) {
+    console.error(err);
+    alert('Error loading directory. See console. You might be rate-limited by GitHub API.');
+    state.entries = [];
+    renderCurrent();
+  }
+}
+
+function entrySort(a,b){
+  if (a.type === b.type) return a.name.localeCompare(b.name, undefined, {sensitivity:'base'});
+  return (a.type === 'dir') ? -1 : 1;
+}
+
+function renderCurrent(){
+  const q = (el.search.value || '').trim().toLowerCase();
+  const visible = state.entries.filter(e => !q || e.name.toLowerCase().includes(q));
+  el.rows.innerHTML = '';
+  if (visible.length === 0) {
+    el.empty.style.display = 'block';
+    return;
+  } else el.empty.style.display = 'none';
+
+  renderBreadcrumb();
+
+  for (const e of visible){
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td style="width:56px"><div class="icon">${e.type==='dir'?'📁':fileIcon(e.name)}</div></td>
+      <td class="name"><div class="row"><div style="min-width:10px"></div>
+        ${linkHtmlForEntry(e)}
+        <span class="muted"></span>
+      </div></td>
+      <td>${escapeHtml(e.type)}</td>
+      <td class="right">${e.type==='file'?humanSize(e.size):''}</td>
+    `;
+    // attach handlers
+    if (e.type === 'dir') {
+      tr.querySelector('.entryLink').addEventListener('click', (ev)=>{ ev.preventDefault(); goTo(e.path); });
+    } else {
+      const previewBtn = tr.querySelector('.entryPreview');
+      if (previewBtn) previewBtn.addEventListener('click', (ev)=>{ ev.preventDefault(); previewFile(e.path); });
+      // entryFileOpen is regular anchor; default navigation handles it (opens page or GitHub file)
+    }
+    el.rows.appendChild(tr);
+  }
+}
+
+function linkHtmlForEntry(e){
+  if (e.type === 'dir') {
+    return `<a href="#" class="entryLink" data-path="${escapeHtml(e.path)}">${escapeHtml(e.name)}/</a>`;
+  } else {
+    if (state.pagesBase) {
+      const pagesHref = joinUrl(state.pagesBase, e.path);
+      return `<a class="entryFileOpen" href="${escapeHtml(pagesHref)}" target="_blank" rel="noopener noreferrer">${escapeHtml(e.name)}</a>
+              <button class="entryPreview" data-path="${escapeHtml(e.path)}" title="Preview file">Preview</button>`;
+    } else {
+      const blobHref = `https://github.com/${state.owner}/${state.repo}/blob/${encodeURIComponent(state.branch)}/${e.path}`;
+      return `<a class="entryFileOpen" href="${escapeHtml(blobHref)}" target="_blank" rel="noopener noreferrer">${escapeHtml(e.name)}</a>
+              <button class="entryPreview" data-path="${escapeHtml(e.path)}" title="Preview file">Preview</button>`;
+    }
+  }
+}
+
+// breadcrumb
+function renderBreadcrumb(){
+  const parts = state.path === '' ? [] : state.path.split('/');
+  const crumbs = [];
+  crumbs.push(`<a href="#" data-path="">/</a>`);
+  let acc = '';
+  for (const p of parts){
+    acc = acc === '' ? p : acc + '/' + p;
+    crumbs.push(`<a href="#" data-path="${escapeHtml(acc)}">${escapeHtml(p)}</a>`);
+  }
+  document.getElementById('breadcrumb').innerHTML = crumbs.join(' / ');
+  document.querySelectorAll('#breadcrumb a').forEach(a=>{
+    a.addEventListener('click', (ev)=>{ ev.preventDefault(); const path = a.dataset.path; goTo(path); });
+  });
+}
+
+// preview file: fetch raw from raw.githubusercontent.com
+async function previewFile(path){
+  showPreview('Loading ' + path, '<em class="muted">Fetching file content…</em>');
+  try {
+    const url = rawUrl(path);
+    const res = await fetch(url);
+    if (!res.ok) {
+      showPreview('Error', `<div class="muted">Failed to fetch file (status ${res.status})</div>`);
+      return;
+    }
+    const ext = path.split('.').pop().toLowerCase();
+    if (['png','jpg','jpeg','gif','svg','webp'].includes(ext)) {
+      showPreview(path, `<div style="padding:8px"><img src="${url}" alt="${escapeHtml(path)}" style="max-width:100%;height:auto"></div>`,
+                  `<a href="${url}" target="_blank">Open raw</a> • <a href="${url}" download>Download</a> • <a href="#" id="closePreview">Close</a>`);
+      document.getElementById('closePreview')?.addEventListener('click', (e)=>{ e.preventDefault(); hidePreview(); });
+      return;
+    }
+    const text = await res.text();
+    const bodyHtml = `<pre>${escapeHtml(text)}</pre>`;
+    const actions = `<a href="${url}" target="_blank" rel="noopener">Open raw</a> • <a href="${url}" download>Download</a> • <a href="#" id="closePreview">Close</a>`;
+    showPreview(path, bodyHtml, actions);
+    document.getElementById('closePreview')?.addEventListener('click', (e)=>{ e.preventDefault(); hidePreview(); });
+  } catch (err) {
+    console.error(err);
+    showPreview('Error', `<div class="muted">Error loading preview. See console.</div>`);
+  }
+}
+
+function showPreview(title, bodyHtml, actionsHtml){
+  el.previewTitle.textContent = title;
+  el.previewBody.innerHTML = bodyHtml;
+  el.previewActions.innerHTML = actionsHtml || `<a href="#" id="closePreview">Close</a>`;
+  el.preview.style.display = 'flex';
+  el.preview.setAttribute('aria-hidden','false');
+}
+
+function hidePreview(){
+  el.preview.style.display = 'none';
+  el.preview.setAttribute('aria-hidden','true');
+}
+
+function rawUrl(path){
+  return `https://raw.githubusercontent.com/${state.owner}/${state.repo}/${encodeURIComponent(state.branch)}/${path}`;
+}
+function joinUrl(base, path){
+  if (!base.endsWith('/')) base = base + '/';
+  return base + path;
+}
+function humanSize(bytes){
+  if (!bytes && bytes !== 0) return '';
+  if (bytes < 1024) return bytes + ' B';
+  if (bytes < 1024*1024) return (bytes/1024).toFixed(1) + ' KB';
+  return (bytes/1024/1024).toFixed(2) + ' MB';
+}
+function fileIcon(name){
+  const ext = (name.split('.').pop() || '').toLowerCase();
+  if (['md','txt','json','xml','csv','yaml','yml','ini'].includes(ext)) return '📄';
+  if (['js','ts','py','rb','java','c','cpp','cs','go','php','sh'].includes(ext)) return '💻';
+  if (['png','jpg','jpeg','gif','svg','webp'].includes(ext)) return '🖼️';
+  if (['zip','tar','gz','7z','rar'].includes(ext)) return '🗜️';
+  return '📄';
+}
+function escapeHtml(s){ if (s==null) return ''; return String(s).replace(/[&<>"']/g, c=>({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' })[c]); }
+function normalizePath(p){ if (!p) return ''; return p.replace(/^\/+|\/+$/g,''); }
+function debounce(fn,t){ let timer; return (...a)=>{ clearTimeout(timer); timer=setTimeout(()=>fn(...a), t); }; }
+
+</script>
+</body>
+</html>
